@@ -1,4 +1,9 @@
-## Agent skills
+# AGENTS.md
+
+Project to learn about isolating coding agents using /teach Skills
+
+# Agent skills
+
 
 ### Issue tracker
 
