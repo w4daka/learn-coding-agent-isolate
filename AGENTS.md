@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Project to learn about isolating coding agents using /teach Skills
+/teachのskillを使ってコーディングエージェントの隔離について学ぶリポジトリ
 
 # Agent skills
 
