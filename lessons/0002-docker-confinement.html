@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0002 Docker で pi を閉じ込める | pi 隔離コース</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body><main>
+<header class="course"><p>pi 隔離コース · Lesson 0002 · 所要30分 · 前提: Lesson 0001＋bwrap 檻の実用化</p></header>
+<h1>0002 Docker で pi を閉じ込める</h1>
+<p>bwrap 檻は動いた。だが <strong>net が全開</strong>だ。送信脅威は未対策のまま残っている。今回は Docker で束の境界（FS・net・capability）を扱い、<strong>送信を閉じると pi が死ぬ</strong>ことを観測する。それが次回（egress 絞り）への布石だ。</p>
+
+<h2>知識: Docker の境界と警告</h2>
+<p>bwrap との差は3点だ。① FS・net・cgroup・capability・seccomp を束で制限できる。② 使い捨て（<code class="inline">--rm</code>）が標準。③ <strong>docker デーモンは root だ。</strong> <code class="inline">docker</code> グループ所属＝実質 root 取得と同等。お前は既に docker グループ入りしている（<code class="inline">id</code> で確認済み）。pi に docker ソケットを見せるな。見せた瞬間、檻の外側が root になる。</p>
+<table>
+<tr><th>旗</th><th>効果</th><th>bwrap 対応物</th></tr>
+<tr><td><code class="inline">--read-only</code></td><td>rootfs 全体が EROFS。書込は tmpfs 指定場所のみ</td><td><code class="inline">--ro-bind /</code> 相当</td></tr>
+<tr><td><code class="inline">--cap-drop ALL</code>＋<code class="inline">--security-opt no-new-privileges</code></td><td>権限昇格の芽を潰す</td><td>user ns＋NO_NEW_PRIVS 相当</td></tr>
+<tr><td><code class="inline">-v "$HERE:/work:rw"</code> のみ</td><td>書けるのは workspace だけ</td><td><code class="inline">--bind HERE HERE</code></td></tr>
+<tr><td><code class="inline">--network none</code></td><td>送信ゼロ。ただし pi も死ぬ（後述）</td><td>（bwrap 檻は未対策）</td></tr>
+</table>
+
+<h2>技能: ホスト側で実行しろ（agent は檻内のため未検証の叩き台だ）</h2>
+<pre># 実験A: 読取専用 rootfs の観測（pi 不要・5分）
+docker run --rm --read-only \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --tmpfs /tmp:rw,noexec,nosuid,size=50m \
+  -v /tmp/pi-isolate-lab/work:/work:rw \
+  archlinux:base \
+  sh -c 'touch /should-fail; echo "exit=$?"; touch /work/ok &amp;&amp; echo "work-writable"'
+# 期待: Read-only file system / exit=1 / work-writable
+
+# 実験B: net を切ると pi が死ぬ観測（送信と機能の衝突）
+docker run --rm --read-only --network none \
+  --cap-drop ALL --security-opt no-new-privileges \
+  your-pi-image \
+  sh -c 'getent hosts api.anthropic.com; echo "exit=$?"'
+# 期待: 解決失敗。pi は LLM API に届かず起動不能。これが送信対策の代償だ。</pre>
+<div class="callout">判定基準: A=EROFS＋work 書込可、B=名前解決失敗。B の死に方が「送信を閉じる代償」の正体だ。API 到達のみ許可する egress 絞りは Lesson 0003 の宿題にする。実験はホスト側の別ターミナルで実行し、trace 全文を貼れ（<a href="0001-threat-model-and-spectrum.html">0001</a> の流儀で）。</div>
+
+<h2>確認クイズ（検索禁止・記憶で答えろ）</h2>
+<div class="quiz"><p>Q1. Docker で filesystem 隔離の本体は何か</p>
+<button>送信の完全遮断</button>
+<button data-correct="1">書込場所の限定</button>
+<button>権限昇格の阻止</button>
+<p class="result"></p></div>
+<div class="quiz"><p>Q2. --read-only の効果は何か</p>
+<button>書込を全部許す</button>
+<button>一部書込を許す</button>
+<button data-correct="1">全書込を拒否す</button>
+<p class="result"></p></div>
+<div class="quiz"><p>Q3. docker グループの実態は何か</p>
+<button data-correct="1">管理者権限相当</button>
+<button>非特権で安全だ</button>
+<button>読取専用で無害</button>
+<p class="result"></p></div>
+
+<h2>一次読物</h2>
+<p><a href="https://www.dillonbrowne.com/blog/sandboxing-ai-coding-agents/">Secure AI Coding Agents with Containers — Dillon Browne</a> の ephemeral container 章。雛形の各旗が上の表のどれに対応するか照らせ。</p>
+
+<h2>次と問合せ</h2>
+<p>次回 Lesson 0003: egress 絞り（API のみ許可）。分からない点は agent（俺）に質問しろ。ただし俺は檻の中だ。ホスト側の実行はお前の仕事だ。</p>
+
+<footer class="lesson"><p><a href="0001-threat-model-and-spectrum.html">0001</a> · <a href="../reference/isolation-spectrum.html">早見表</a> · <a href="../MISSION.md">MISSION.md</a> · <a href="../GLOSSARY.md">GLOSSARY.md</a></p></footer>
+</main>
+<script src="../assets/quiz.js"></script>
+</body></html>

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>隔離早見表 — 手段×効果 | Reference</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body><main>
+<header class="course"><p>pi 隔離コース · Reference · <a href="../lessons/0001-threat-model-and-spectrum.html">Lesson 0001</a> から参照</p></header>
+<h1>隔離早見表 — 手段×効果</h1>
+<p class="muted">印刷用チートシート。詳細の正本は <a href="../RESOURCES.md">RESOURCES.md</a> の一次資料。</p>
+
+<table>
+<tr><th>手段</th><th>何を閉じるか</th><th>特権</th><th>向く場面</th></tr>
+<tr><td>専用ユーザー＋パーミッション</td><td>UID 境界。読めない・書けないを EACCES で観測</td><td>作成時のみ sudo（人間）</td><td>まず最初の一枚。コスト最小</td></tr>
+<tr><td>ACL（setfacl）</td><td>特定パスのみ例外的に見せる</td><td>不要（所有者操作）</td><td>workspace だけ見せたい時</td></tr>
+<tr><td>bwrap（bubblewrap）</td><td>mount・pid・net 名前空間。見せない物は ENOENT、書かせない物は EROFS</td><td>不要（user ns）</td><td>軽量・起動一発の隔離実行</td></tr>
+<tr><td>systemd sandbox（ProtectSystem 等）</td><td>unit 単位の FS・権限・syscall 制限</td><td>system scope は要 sudo、user scope は不要</td><td>常駐サービス化する時</td></tr>
+<tr><td>Docker / container</td><td>FS・net・cgroup・capability を束で制限</td><td>docker グループ（実質 root 相当。要注意）</td><td>再現環境・使い捨て実行</td></tr>
+<tr><td>MicroVM（Docker Sandboxes 等）</td><td>VM 境界。カーネル脱出への耐性</td><td>要セットアップ</td><td>信用ゼロのコードを走らせる時</td></tr>
+</table>
+
+<div class="callout"><strong>観測の物差し:</strong> <code class="inline">EACCES</code>＝権限不足で拒否、<code class="inline">EROFS</code>＝読取専用で拒否、<code class="inline">ENOENT</code>＝見えていない（隔離成功の匂い）。exit code と stderr を必ず残せ。</div>
+
+<h2>聞いただけの語（未習得）</h2>
+<p>chroot+jail・proot・IncusVM・distrobox・Podman・OpenShell・firejail — Lesson 0002 以降で正体を暴く。現時点で使うな。</p>
+
+<footer class="lesson"><p>出典: <a href="https://github.com/containers/bubblewrap">bubblewrap</a> / <a href="https://www.dillonbrowne.com/blog/sandboxing-ai-coding-agents/">Dillon Browne</a> / <a href="https://www.systemshardening.com/articles/linux/systemd-unit-hardening/">systemshardening.com</a></p></footer>
+</main></body></html>
