@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0001 脅威モデルと隔離の物差し | pi 隔離コース</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body><main>
+<header class="course"><p>pi 隔離コース · Lesson 0001 · 所要15分 · 前提なし</p></header>
+<h1>0001 脅威モデルと隔離の物差し</h1>
+<p>ゴールは一つだ。<strong>怖さを4語で言える</strong>こと。怖さが言えれば、隔離手段は <a href="../reference/isolation-spectrum.html">早見表</a> から選べる。</p>
+
+<h2>知識: 怖さは4種類だけ</h2>
+<table>
+<tr><th>脅威</th><th>例</th><th>閉じ方</th></tr>
+<tr><td><strong>破壊</strong></td><td><code class="inline">rm -rf ~</code>、DB 削除</td><td>書ける場所を workspace のみに絞る</td></tr>
+<tr><td><strong>窃取</strong></td><td><code class="inline">~/.ssh/id_ed25519</code> の読み取り</td><td>見せる物を明示。見せない物は存在自体消す</td></tr>
+<tr><td><strong>送信</strong></td><td>秘密の外部 POST、C2 通信</td><td>network を切る・ egress を絞る</td></tr>
+<tr><td><strong>汚染</strong></td><td>悪意ある依存の混入、履歴改竄</td><td>使い捨て環境＋改変の監査</td></tr>
+</table>
+<p class="muted">お前の mission（<a href="../MISSION.md">MISSION.md</a>）の「rm -rf と秘密鍵」は破壊＋窃取だ。まずこの2つを閉じる。</p>
+
+<h2>技能: 権限不足を目で見る（5分実験）</h2>
+<p>隔離の成否は <strong>exit code と errno</strong> で観測する。今回は非特権 bwrap で <code class="inline">EROFS</code> と <code class="inline">ENOENT</code> を出す。偽の秘密でやれ。実鍵に触れるな。</p>
+<pre>mkdir -p /tmp/pi-isolate-lab/work
+echo "fake-secret-do-not-use" &gt; /tmp/pi-isolate-lab/fake_secret
+chmod 600 /tmp/pi-isolate-lab/fake_secret
+
+# 実験A: 読取専用に触ると EROFS で死ぬ（exit=1）
+bwrap --ro-bind /usr /usr --symlink usr/bin /bin \
+  --symlink usr/lib /lib --symlink usr/lib64 /lib64 \
+  --ro-bind /etc /etc --proc /proc --dev /dev \
+  --bind /tmp/pi-isolate-lab/work /work \
+  --unshare-pid --die-with-parent -- \
+  touch /usr/should-fail; echo "exit=$?"
+# 期待: touch: cannot touch '/usr/should-fail': Read-only file system / exit=1
+
+# 実験B: 見せていない秘密は存在しない（exit=1）
+bwrap --ro-bind /usr /usr --symlink usr/bin /bin \
+  --symlink usr/lib /lib --symlink usr/lib64 /lib64 \
+  --ro-bind /etc /etc --proc /proc --dev /dev \
+  --bind /tmp/pi-isolate-lab/work /work \
+  --unshare-pid --die-with-parent -- \
+  cat /tmp/pi-isolate-lab/fake_secret; echo "exit=$?"
+# 期待: No such file or directory / exit=1
+
+# 実験C: 許可した場所は書ける（exit=0）
+bwrap --ro-bind /usr /usr --symlink usr/bin /bin \
+  --symlink usr/lib /lib --symlink usr/lib64 /lib64 \
+  --ro-bind /etc /etc --proc /proc --dev /dev \
+  --bind /tmp/pi-isolate-lab/work /work \
+  --unshare-pid --die-with-parent -- \
+  touch /work/ok &amp;&amp; ls -l /tmp/pi-isolate-lab/work; echo "exit=$?"</pre>
+<div class="callout">判定基準: A=EROFS・B=ENOENT・C=成功。この3点セットが「閉じた上で仕事ができる」の最小形だ。pi を閉じ込める全手法はこの再現だ。<a href="../reference/isolation-spectrum.html">早見表</a> を見て、bwrap の行が何を閉じたか言え。</div>
+
+<h2>確認クイズ（検索禁止・記憶で答えろ）</h2>
+<div class="quiz"><p>Q1. 隔離の第一目的は何か</p>
+<button>秘密の漏洩を防ぐ</button>
+<button data-correct="1">被害を局限化する</button>
+<button>不正送信を遮断す</button>
+<p class="result"></p></div>
+<div class="quiz"><p>Q2. EACCES が出たら何が起きたか</p>
+<button data-correct="1">権限不足で拒否</button>
+<button>存在しない経路</button>
+<button>読取専用で拒否</button>
+<p class="result"></p></div>
+<div class="quiz"><p>Q3. bwrap の --ro-bind の効果は何か</p>
+<button>書込可能で見せる</button>
+<button>存在自体を隠蔽す</button>
+<button data-correct="1">読取専用で見せる</button>
+<p class="result"></p></div>
+
+<h2>一次読物</h2>
+<p>今日の一つ: <a href="https://www.dillonbrowne.com/blog/sandboxing-ai-coding-agents/">Secure AI Coding Agents with Containers — Dillon Browne</a>。ephemeral container の雛形（<code class="inline">--network none / --read-only / --cap-drop ALL</code>）だけ読めばいい。全文は不要だ。</p>
+
+<h2>次と問合せ</h2>
+<p>次回 Lesson 0002: 専用ユーザー＋ACL で pi を閉じる（sudo は人間が実行）。分からない点は agent（俺）に質問しろ。その質問自体が学習記録になる。</p>
+
+<footer class="lesson"><p><a href="../reference/isolation-spectrum.html">早見表</a> · <a href="../MISSION.md">MISSION.md</a> · <a href="../RESOURCES.md">RESOURCES.md</a> · 用語は <a href="../GLOSSARY.md">GLOSSARY.md</a> に圧縮予定（4語を言えたら追加）</p></footer>
+</main>
+<script src="../assets/quiz.js"></script>
+</body></html>

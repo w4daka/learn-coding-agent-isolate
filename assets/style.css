@@ -1,0 +1,24 @@
+/* Shared course stylesheet — every lesson links this. Tufte-ish, print-friendly. */
+:root { --ink:#1a1a1a; --muted:#5b5b5b; --line:#e2ddd2; --bg:#fdfcf8; --card:#fff; --accent:#8a2b2b; }
+* { box-sizing:border-box; }
+body { background:var(--bg); color:var(--ink); font-family:"Hiragino Kaku Gothic ProN","Noto Sans JP",Georgia,serif; line-height:1.9; margin:0; }
+main { max-width:44rem; margin:0 auto; padding:2.5rem 1.5rem 5rem; }
+header.course { border-bottom:1px solid var(--line); padding-bottom:1rem; margin-bottom:2rem; }
+header.course p { color:var(--muted); font-size:.85rem; margin:.2rem 0; }
+h1 { font-size:1.7rem; line-height:1.4; margin:.4rem 0 1rem; }
+h2 { font-size:1.15rem; margin:2.5rem 0 .6rem; border-left:4px solid var(--accent); padding-left:.6rem; }
+code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+pre { background:#111; color:#f2ede2; padding:1rem 1.2rem; border-radius:8px; overflow-x:auto; font-size:.82rem; line-height:1.7; }
+code.inline { background:#f0ece1; padding:.1em .4em; border-radius:4px; font-size:.9em; }
+.callout { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--accent); padding:.9rem 1.1rem; border-radius:0 8px 8px 0; margin:1.2rem 0; }
+.muted { color:var(--muted); font-size:.88rem; }
+table { border-collapse:collapse; width:100%; font-size:.88rem; margin:1rem 0; }
+th, td { border:1px solid var(--line); padding:.5rem .7rem; text-align:left; vertical-align:top; }
+th { background:#f4f0e6; }
+a { color:var(--accent); }
+.quiz { border:1px solid var(--line); border-radius:10px; padding:1rem 1.2rem; margin:1rem 0; background:var(--card); }
+.quiz button { display:block; width:100%; text-align:left; margin:.4rem 0; padding:.55rem .8rem; border:1px solid var(--line); border-radius:8px; background:#faf8f2; cursor:pointer; font-size:.92rem; }
+.quiz button:hover { border-color:var(--accent); }
+.quiz .result { font-weight:bold; margin-top:.6rem; }
+footer.lesson { margin-top:3rem; border-top:1px solid var(--line); padding-top:1rem; font-size:.85rem; color:var(--muted); }
+@media print { body { background:#fff; } pre { background:#eee; color:#111; } a { text-decoration:none; color:#111; } }
