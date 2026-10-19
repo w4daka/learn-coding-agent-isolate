@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>0003 egress を絞る | pi 隔離コース</title>
+<link rel="stylesheet" href="../assets/style.css">
+</head>
+<body><main>
+<header class="course"><p>pi 隔離コース · Lesson 0003 · 所要30分 · 前提: Lesson 0002（net 切断の代償を目撃済み）</p></header>
+<h1>0003 egress を絞る</h1>
+<p>0002 の結論は二択だった。全開（送信無対策）か全閉（pi が死ぬ）か。今回は第三の道だ。<strong>API だけ通す。</strong>手段は許可型 proxy。IP 許可ではなく FQDN 許可にする理由まで観測しろ。</p>
+
+<h2>知識: なぜ IP 許可では駄目か</h2>
+<p>お前の provider（opencode-go）の到達先は <code class="inline">opencode.ai</code> だ（<code class="inline">models-store.json</code> の baseUrl より。鍵の値は読んでいない）。こいつの答えは DNS で変わる。IP を書いた瞬間に腐る。だから L7（名前）で絞る。容器の出口に tinyproxy を置き、allowlist＝<code class="inline">opencode.ai</code> のみ、他は 403。これが egress 絞りの定番形だ。</p>
+<pre># 叩き台（ホスト側・未検証。動かなければ trace を貼れ）
+# 1. フィルタ付 proxy を立てる
+docker run -d --name egress-proxy --network isolated-net \
+  -v "$PWD/tinyproxy.conf:/etc/tinyproxy/tinyproxy.conf:ro" \
+  -v "$PWD/filter:/etc/tinyproxy/filter:ro" \
+  tinyproxy/tinyproxy
+# tinyproxy.conf: Filter "/etc/tinyproxy/filter", FilterURLs On, FilterDefaultDeny Yes
+# filter: 1行だけ opencode.ai
+
+# 2. pi 容器は proxy 経由でのみ外に出る
+docker run --rm --read-only --network isolated-net \
+  --cap-drop ALL --security-opt no-new-privileges \
+  -e http_proxy=http://egress-proxy:8888 \
+  -e https_proxy=http://egress-proxy:8888 \
+  your-pi-image \
+  sh -c 'curl -s -o /dev/null -w "api:%{http_code}\n" https://opencode.ai/; curl -s -o /dev/null -w "other:%{http_code}\n" https://example.com/'
+# 期待: api:到達 / other:403。これが「通す物だけ通る」の実物だ。</pre>
+<div class="callout">判定基準: api 到達＋example.com 403 の対照。IP ではなく名前で絞ったから DNS 変動に強い。なお <code class="inline">https_proxy</code> 経由でも TLS の中身は見えない（CONNECT 方式）。proxy に見えるのは接続先の名前だけだ。秘密の送信先が名前で監査できる。これが観測可能性の egress 版だ。</div>
+
+<h2>確認クイズ（検索禁止・記憶で答えろ）</h2>
+<div class="quiz"><p>Q1. egress 絞りの本体は何か</p>
+<button>全部遮断する</button>
+<button data-correct="1">接続先の限定</button>
+<button>全部許可する</button>
+<p class="result"></p></div>
+<div class="quiz"><p>Q2. IP 許可方式の弱点は何に起因するか</p>
+<button>速度が遅いため</button>
+<button>人手が足りない</button>
+<button data-correct="1">DNSで変わる</button>
+<p class="result"></p></div>
+<div class="quiz"><p>Q3. proxy 方式の利点は何か</p>
+<button data-correct="1">名前で選別する</button>
+<button>全部を遮断する</button>
+<button>全部を許可する</button>
+<p class="result"></p></div>
+
+<h2>一次読物</h2>
+<p><a href="https://www.openlegion.ai/en/learn/ai-agent-sandboxing">AI Agent Sandboxing — OpenLegion</a> の egress・escape 対策章。container 境界の限界と MicroVM の位置づけを掴め（次回への布石）。</p>
+
+<h2>次と問合せ</h2>
+<p>次回 Lesson 0004: MicroVM・Docker Sandboxes（カーネル共有の限界を超える）。分からない点は agent（俺）に質問しろ。ホスト側の実行はお前の仕事だ。</p>
+
+<footer class="lesson"><p><a href="0001-threat-model-and-spectrum.html">0001</a> · <a href="0002-docker-confinement.html">0002</a> · <a href="../reference/isolation-spectrum.html">早見表</a> · <a href="../GLOSSARY.md">GLOSSARY.md</a></p></footer>
+</main>
+<script src="../assets/quiz.js"></script>
+</body></html>
